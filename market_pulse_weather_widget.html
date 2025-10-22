@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Market Pulse – Weather Widget (Open Source)</title>
+<style>
+  :root{
+    --bg: #0f1226;
+    --card: rgba(255,255,255,0.10);
+    --text: #eaf2ff;
+    --muted: #b8c1d9;
+    --accent: #9ad0ff;
+    --good: #70e000;
+    --warn: #ffd166;
+    --bad:  #ff6b6b;
+  }
+  *{box-sizing:border-box;font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif}
+  body{
+    margin:0;background: var(--bg);color: var(--text);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background-size:cover;background-position:center;background-repeat:no-repeat;
+    transition: background 600ms ease-in-out;
+  }
+  .wrap{width:min(1100px, 96vw);margin:24px auto;padding:18px 18px 22px;border-radius:20px;
+    background: radial-gradient(1200px 800px at 20% -20%, rgba(255,255,255,0.10), transparent),
+                linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06));
+    backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 30px 60px rgba(0,0,0,0.45);
+  }
+  .row{display:flex;gap:16px;flex-wrap:wrap;align-items:stretch}
+  .col{flex:1 1 260px}
+  h1{font-size:28px;margin:0 0 6px 0;line-height:1.15}
+  h2{font-size:18px;margin:0 0 6px 0;color:var(--muted);font-weight:500}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 16px 0}
+  .controls input, .controls select{
+    background: rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.18);
+    color:var(--text); padding:10px 12px;border-radius:10px; outline:none; min-width:140px;
+  }
+  .controls button{
+    padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#06243b;
+    font-weight:600; cursor:pointer;
+  }
+  .card{background: var(--card); border: 1px solid rgba(255,255,255,0.14);
+    border-radius:18px;padding:16px}
+  .big-temp{font-size:64px;font-weight:700;letter-spacing:-1px;margin:8px 0}
+  .muted{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .kpi{background: rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+    border-radius:14px;padding:12px}
+  .kpi h3{margin:0 0 6px 0;font-size:13px;color:var(--muted);font-weight:500}
+  .kpi .v{font-size:18px;font-weight:700}
+  .forecast{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-top:10px}
+  .day{background: rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+    padding:12px;border-radius:14px;text-align:center}
+  .day .d{font-size:12px;color:var(--muted)}
+  .day .t{font-size:18px;font-weight:700}
+  .code{display:inline-block;font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size:12px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,0.12);}
+  .footer{margin-top:10px;font-size:12px;color:var(--muted)}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
+    background: rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);font-size:12px}
+  .loc{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tiny{font-size:12px}
+  /* Weather backgrounds via animated gradients (no external assets) */
+  body.bg-clear {background-image:
+    radial-gradient(1200px 800px at 70% -10%, rgba(255,255,255,0.18), transparent),
+    linear-gradient(180deg, #5ecbff, #7ad6ff 35%, #b6e8ff 70%, #dff6ff);}
+  body.bg-clouds {background-image:
+    radial-gradient(1000px 900px at 70% -20%, rgba(255,255,255,0.18), transparent),
+    linear-gradient(180deg, #6f7d8c, #8596a3 35%, #a8b7c2 70%, #cbd5dc);}
+  body.bg-rain {background-image:
+    radial-gradient(800px 900px at 20% -10%, rgba(255,255,255,0.15), transparent),
+    linear-gradient(180deg, #3a506b, #415a77 40%, #1b263b 80%, #0d1b2a);}
+  body.bg-storm {background-image:
+    radial-gradient(800px 900px at 10% -10%, rgba(255,255,255,0.15), transparent),
+    linear-gradient(180deg, #1f2833, #2a2f35 35%, #0b0c10 80%, #05060a);}
+  body.bg-snow {background-image:
+    radial-gradient(1200px 800px at 60% -10%, rgba(255,255,255,0.35), transparent),
+    linear-gradient(180deg, #b9e6ff, #e1f2ff 50%, #ffffff);}
+</style>
+</head>
+<body class="bg-clear">
+  <div class="wrap">
+    <div class="row">
+      <div class="col">
+        <h1>Weather • India</h1>
+        <h2>Open‑source forecast (Open‑Meteo + OSM)</h2>
+        <div class="controls">
+          <input id="state" placeholder="State (e.g., Maharashtra)" />
+          <input id="district" placeholder="District (e.g., Nashik)" />
+          <input id="city" placeholder="City (e.g., Lasalgaon or Pune)" />
+          <button id="go">Get Forecast</button>
+        </div>
+        <div class="loc tiny" id="locRow" style="display:none">
+          <span class="badge" id="locLbl">—</span>
+          <span>Lat/Lon:</span><span class="code" id="latlon">—</span>
+          <span>Timezone:</span><span class="code" id="tz">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col card" id="currentCard">
+        <h2 id="condition">Condition</h2>
+        <div class="big-temp" id="temp">--°</div>
+        <div class="muted" id="description">—</div>
+        <div class="grid" style="margin-top:12px">
+          <div class="kpi">
+            <h3>Wind (km/h)</h3><div class="v" id="wind">—</div>
+          </div>
+          <div class="kpi">
+            <h3>Precip (mm)</h3><div class="v" id="precip">—</div>
+          </div>
+          <div class="kpi">
+            <h3>Sunrise / Sunset</h3><div class="v" id="sun">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="col card">
+        <h2>Next 7 Days</h2>
+        <div class="forecast" id="forecast"></div>
+      </div>
+    </div>
+    <div class="footer">
+      Data: <span class="code">Open‑Meteo</span> + <span class="code">Nominatim (OSM)</span> ·
+      Built for embedding in Metabase dashboards via <code>&lt;iframe&gt;</code> (or standalone).
+    </div>
+  </div>
+
+<script>
+// --- utilities ---
+const $ = (id) => document.getElementById(id);
+
+const WMO_CODE = {
+  0: {name:'Clear sky', bg:'bg-clear'},
+  1: {name:'Mainly clear', bg:'bg-clear'},
+  2: {name:'Partly cloudy', bg:'bg-clouds'},
+  3: {name:'Overcast', bg:'bg-clouds'},
+  45:{name:'Fog', bg:'bg-clouds'},
+  48:{name:'Depositing rime fog', bg:'bg-clouds'},
+  51:{name:'Drizzle: light', bg:'bg-rain'},
+  53:{name:'Drizzle: moderate', bg:'bg-rain'},
+  55:{name:'Drizzle: dense', bg:'bg-rain'},
+  61:{name:'Rain: slight', bg:'bg-rain'},
+  63:{name:'Rain: moderate', bg:'bg-rain'},
+  65:{name:'Rain: heavy', bg:'bg-rain'},
+  66:{name:'Freezing rain: light', bg:'bg-storm'},
+  67:{name:'Freezing rain: heavy', bg:'bg-storm'},
+  71:{name:'Snow fall: slight', bg:'bg-snow'},
+  73:{name:'Snow fall: moderate', bg:'bg-snow'},
+  75:{name:'Snow fall: heavy', bg:'bg-snow'},
+  77:{name:'Snow grains', bg:'bg-snow'},
+  80:{name:'Rain showers: slight', bg:'bg-rain'},
+  81:{name:'Rain showers: moderate', bg:'bg-rain'},
+  82:{name:'Rain showers: violent', bg:'bg-storm'},
+  85:{name:'Snow showers: slight', bg:'bg-snow'},
+  86:{name:'Snow showers: heavy', bg:'bg-snow'},
+  95:{name:'Thunderstorm: slight/moderate', bg:'bg-storm'},
+  96:{name:'Thunderstorm with slight hail', bg:'bg-storm'},
+  99:{name:'Thunderstorm with heavy hail', bg:'bg-storm'}
+};
+
+function setBackground(code){
+  const meta = WMO_CODE[code] || WMO_CODE[2];
+  document.body.className = meta.bg;
+}
+
+function fmtDate(d){
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-IN',{weekday:'short'});
+}
+
+function hhmm(s){
+  const d = new Date(s); return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+
+async function geocode(city, district, state){
+  const q = [city, district, state, 'India'].filter(Boolean).join(', ');
+  const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&q=${encodeURIComponent(q)}`;
+  const res = await fetch(url, {headers:{'Accept-Language':'en'}});
+  if(!res.ok) throw new Error('Geocoding failed');
+  const j = await res.json();
+  if(!j.length) throw new Error('Location not found');
+  return { lat: parseFloat(j[0].lat), lon: parseFloat(j[0].lon), display: j[0].display_name };
+}
+
+async function openMeteo(lat, lon){
+  const base = 'https://api.open-meteo.com/v1/forecast';
+  const params = new URLSearchParams({
+    latitude: lat, longitude: lon,
+    timezone: 'Asia/Kolkata',
+    current_weather: 'true',
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode,sunrise,sunset',
+    forecast_days: '7'
+  });
+  const url = `${base}?${params.toString()}`;
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('Weather fetch failed');
+  return r.json();
+}
+
+function updateUI(loc, wx){
+  $('locRow').style.display='flex';
+  $('locLbl').textContent = loc.display;
+  $('latlon').textContent = `${wx.latitude.toFixed(3)}, ${wx.longitude.toFixed(3)}`;
+  $('tz').textContent = wx.timezone;
+
+  // current
+  const cw = wx.current_weather || {};
+  const code = cw.weathercode ?? (wx.daily?.weathercode?.[0] ?? 2);
+  const meta = WMO_CODE[code] || {name:'Unknown', bg:'bg-clouds'};
+  $('condition').textContent = meta.name;
+  $('temp').textContent = (cw.temperature != null ? Math.round(cw.temperature)+'°' : '--');
+  $('description').textContent = `Wind ${cw.windspeed ?? '—'} km/h · ${new Date().toLocaleString('en-IN')}`;
+  setBackground(code);
+
+  // KPIs (from daily day 0)
+  const d = wx.daily;
+  if(d){
+    $('wind').textContent = d.windspeed_10m_max?.[0] ?? '—';
+    $('precip').textContent = d.precipitation_sum?.[0] ?? '—';
+    const sr = d.sunrise?.[0], ss = d.sunset?.[0];
+    $('sun').textContent = (sr && ss) ? `${hhmm(sr)} / ${hhmm(ss)}` : '—';
+  }
+
+  // 7-day forecast
+  const fc = $('forecast'); fc.innerHTML='';
+  if(wx.daily){
+    const L = wx.daily.time.length;
+    for(let i=0;i<Math.min(L,7);i++){
+      const codei = wx.daily.weathercode[i];
+      const meta2 = WMO_CODE[codei] || WMO_CODE[2];
+      const el = document.createElement('div');
+      el.className = 'day';
+      el.innerHTML = `
+        <div class="d">${fmtDate(wx.daily.time[i])}</div>
+        <div class="t">${Math.round(wx.daily.temperature_2m_max[i])}° / ${Math.round(wx.daily.temperature_2m_min[i])}°</div>
+        <div class="tiny">${meta2.name}</div>
+      `;
+      fc.appendChild(el);
+    }
+  }
+}
+
+async function run(){
+  const state = $('state').value.trim() || 'Maharashtra';
+  const district = $('district').value.trim();
+  const city = $('city').value.trim() || 'Pune';
+  try {
+    $('go').disabled = true; $('go').textContent = 'Loading…';
+    const loc = await geocode(city, district, state);
+    const wx = await openMeteo(loc.lat, loc.lon);
+    loc.display = `${city || ''}${district ? ', '+district : ''}${state ? ', '+state : ''}`.replace(/^, /,'');
+    updateUI(loc, wx);
+  } catch(e){
+    alert(e.message || 'Something went wrong');
+  } finally {
+    $('go').disabled = false; $('go').textContent = 'Get Forecast';
+  }
+}
+
+$('go').addEventListener('click', run);
+// auto-run default
+run();
+</script>
+</body>
+</html>
